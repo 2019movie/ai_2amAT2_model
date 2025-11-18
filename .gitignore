@@ -1,0 +1,5 @@
+# Ignore data folder
+data/
+
+# Ignore myenv folder
+myenv/

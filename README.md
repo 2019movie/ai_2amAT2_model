@@ -26,6 +26,8 @@ L__requirements.txt   # Python dependencies
 ### Clone the repo
 - git clone https://github.com/2019movie/ai_2amAT2_model.git
 - cd ai_2amAT2_model
+- python3 -m venv myenv
+- source myenv/bin/activate
 - pip install -r requirements.txt
 
 ### Training

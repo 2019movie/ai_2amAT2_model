@@ -8,7 +8,7 @@ MODE=$1
 
 if [ "$MODE" = "single" ]; then
     echo "Running single GPU training..."
-    python train.py --batch_size=32 --epochs=2 --compile=False
+    python3 train.py --batch_size=32 --epochs=2 --compile=False
 
 elif [ "$MODE" = "ddp" ]; then
     echo "Running DDP on all visible GPUs..."
