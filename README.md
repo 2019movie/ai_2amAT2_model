@@ -1,6 +1,6 @@
 # ai_2amAT2_model
-# classification model, distributed training with PyTorch with data(CIFAR10
-)
+# classification model, 
+## distributed training with PyTorch with data(CIFAR10)
 
 This repository contains a complete, assessment-ready machine learning training pipeline using PyTorch, supporting both single-GPU and Distributed Data Parallel (DDP) training with torchrun.
 
@@ -8,12 +8,11 @@ The project trains a simple convolutional neural network (CNN) on the CIFAR-10 d
 
 ## Repository structure
 
-project/
-│
-├── train.py          # Main training script (single GPU + DDP)
-├── run.sh            # Bash wrapper for single-GPU or DDP execution
-├── README.md         # Documentation
-└── requirements.txt  # Python dependencies
+ai_2amAT2_model/
++--train.py           # main training script
++--run.sh             # Bash wrapper for single-GPU or DDP execution
++--README.md          # Documentation
+L__requirements.txt   # Python dependencies
 
 ## Features
 
@@ -24,9 +23,9 @@ project/
 
 ## Installation
 ### Clone the repo
-git clone https://github.com/2019movie/ai_2amAT2_model.git
-cd ai_2amAT2_model
-pip install -r requirements.txt
+- git clone https://github.com/2019movie/ai_2amAT2_model.git
+- cd ai_2amAT2_model
+- pip install -r requirements.txt
 
 ### Training
 #### Single GPU training
