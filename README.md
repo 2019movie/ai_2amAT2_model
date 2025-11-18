@@ -8,6 +8,7 @@ The project trains a simple convolutional neural network (CNN) on the CIFAR-10 d
 
 ## Repository structure
 
+```markdown
 ai_2amAT2_model/
 +--train.py           # main training script
 +--run.sh             # Bash wrapper for single-GPU or DDP execution
