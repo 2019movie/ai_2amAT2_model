@@ -65,7 +65,7 @@ class Net(nn.Module):
 # ------------------------------------------------------
 # Training loop
 # ------------------------------------------------------
-def train(net, trainloader, criterion, optimizer, epochs=2):
+def train(net, trainloader, criterion, optimizer, epochs=2, testloader, device, classes):
     init_json_log()
     for epoch in range(epochs):
         running_loss = 0.0
@@ -85,6 +85,7 @@ def train(net, trainloader, criterion, optimizer, epochs=2):
                 print(f'[{epoch + 1}, {i + 1:5d}] loss: {avg_loss:.3f}')
                 log_json("training_log.json", epoch+1, i+1, avg_loss)
                 running_loss = 0.0
+         evaluate_model(net, testloader, device, classes)
     print('Finished Training')
 
 
@@ -98,6 +99,34 @@ def test(net, testloader, classes):
 
     imshow(torchvision.utils.make_grid(images.cpu()))
     print('GroundTruth: ', ' '.join(f'{classes[labels[j]]:5s}' for j in range(4)))
+
+# ------------------------------------------------------
+# Evaluation function
+# ------------------------------------------------------
+
+def evaluate_model(net, dataloader, device, classes):
+    net.eval()  # set to evaluation mode
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = net(inputs)
+            _, predicted = torch.max(outputs, 1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    # Accuracy
+    accuracy = np.mean(np.array(all_preds) == np.array(all_labels))
+    print(f"Accuracy: {accuracy:.4f}")
+
+    # Classification report
+    print(classification_report(all_labels, all_preds, target_names=classes))
+
+    # Confusion matrix
+    #plot_confusion_matrix(all_labels, all_preds, classes)
+
 
 # ------------------------------------------------------
 # Main entry point
@@ -138,7 +167,7 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-    train(net, trainloader, criterion, optimizer, epochs=2)
+    train(net, trainloader, criterion, optimizer, epochs=2, testloader, device, classes)
 
     PATH = './cifar_net.pth'
     torch.save(net.state_dict(), PATH)
