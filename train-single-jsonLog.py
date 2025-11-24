@@ -65,7 +65,7 @@ class Net(nn.Module):
 # ------------------------------------------------------
 # Training loop
 # ------------------------------------------------------
-def train(net, trainloader, criterion, optimizer, epochs=2, testloader, device, classes):
+def train(net, trainloader, criterion, optimizer, testloader, device, classes, epochs=2):
     init_json_log()
     for epoch in range(epochs):
         running_loss = 0.0
@@ -167,7 +167,7 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-    train(net, trainloader, criterion, optimizer, epochs=2, testloader, device, classes)
+    train(net, trainloader, criterion, optimizer, testloader, device, classes, epochs=2)
 
     PATH = './cifar_net.pth'
     torch.save(net.state_dict(), PATH)
