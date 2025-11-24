@@ -85,7 +85,7 @@ def train(net, trainloader, criterion, optimizer, testloader, device, classes, e
                 print(f'[{epoch + 1}, {i + 1:5d}] loss: {avg_loss:.3f}')
                 log_json("training_log.json", epoch+1, i+1, avg_loss)
                 running_loss = 0.0
-         evaluate_model(net, testloader, device, classes)
+        evaluate_model(net, testloader, device, classes)
     print('Finished Training')
 
 
