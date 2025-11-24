@@ -17,7 +17,7 @@ print(f"Using device: {device}")
 # define helper functions
 def imshow(img):
     img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
+    npimg = img.cpu().numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
 
@@ -77,7 +77,7 @@ def test(net, testloader, classes):
     images, labels = next(dataiter)
     images, labels = images.to(device), labels.to(device)
 
-    imshow(torchvision.utils.make_grid(images))
+    imshow(torchvision.utils.make_grid(images.cpu()))
     print('GroundTruth: ', ' '.join(f'{classes[labels[j]]:5s}' for j in range(4)))
 
 # ------------------------------------------------------
