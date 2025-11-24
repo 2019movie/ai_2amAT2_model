@@ -86,6 +86,15 @@ def train(net, trainloader, criterion, optimizer, testloader, device, classes, e
                 log_json("training_log.json", epoch+1, i+1, avg_loss)
                 running_loss = 0.0
         evaluate_model(net, testloader, device, classes)
+        # Save checkpoint at end of each epoch
+        checkpoint = {
+            'epoch': epoch + 1,
+            'model_state_dict': net.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss.item(),
+        }
+        torch.save(checkpoint, f'checkpoint_epoch_{epoch+1}.pth')
+        print(f"saved: checkpoint_epoch_{epoch+1}.pth")
     print('Finished Training')
 
 
