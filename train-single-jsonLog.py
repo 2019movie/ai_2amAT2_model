@@ -121,12 +121,6 @@ def evaluate_model(net, dataloader, device, classes):
     accuracy = np.mean(np.array(all_preds) == np.array(all_labels))
     print(f"Accuracy: {accuracy:.4f}")
 
-    # Classification report
-    print(classification_report(all_labels, all_preds, target_names=classes))
-
-    # Confusion matrix
-    #plot_confusion_matrix(all_labels, all_preds, classes)
-
 
 # ------------------------------------------------------
 # Main entry point
