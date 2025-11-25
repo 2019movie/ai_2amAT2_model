@@ -51,6 +51,21 @@ def imshow(img):
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
 
+
+def setup_ddp():
+    # Detect DDP launch
+    ddp = ("RANK" in os.environ) or ("WORLD_SIZE" in os.environ)
+    rank = int(os.environ.get("RANK", "0"))
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+
+    if ddp:
+        init_process_group(backend="nccl", timeout=torch.timedelta(seconds=600))
+        torch.cuda.set_device(local_rank)  # ensure this process uses the correct GPU
+        print(f"[DDP] world_size={world_size}, rank={rank}, local_rank={local_rank}")
+    return ddp, rank, world_size, local_rank
+
+
 def init_json_log(filename="training_log.json"):
     with open(filename, "w") as f:
         json.dump({"logs": []}, f)
@@ -211,9 +226,18 @@ def main():
 
         classes = ('plane','car','bird','cat','deer','dog','frog','horse','ship','truck')
 
-        net = Net().to(device)
+        # After creating the model
+        net = Net().to(torch.device("cuda", local_rank))
         if world_size > 1:
-            net = DDP(net, device_ids=[rank % max(1, num_gpus)], output_device=rank % max(1, num_gpus))
+            net = DDP(net, device_ids=[local_rank], output_device=local_rank)
+
+        # When synchronizing after dataset download
+        if is_initialized():
+            torch.distributed.barrier(device_ids=[local_rank])
+
+        #net = Net().to(device)
+        #if world_size > 1:
+        #    net = DDP(net, device_ids=[rank % max(1, num_gpus)], output_device=rank % max(1, num_gpus))
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
