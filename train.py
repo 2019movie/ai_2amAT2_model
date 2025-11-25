@@ -13,7 +13,20 @@ import datetime
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
+from torch.distributed import init_process_group, destroy_process_group, is_initialized, get_rank, get_world_size
+
+
+import argparse
+
+# ------------------------------------------------------
+# Handle arguments
+# ------------------------------------------------------
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--epochs", type=int, default=2)
+    return parser.parse_args()
+
 
 # ------------------------------------------------------
 # Device detection
@@ -85,31 +98,26 @@ class Net(nn.Module):
 def train(net, trainloader, criterion, optimizer, testloader, device, classes, epochs=2, world_size=1, rank=0):
     init_json_log()
     for epoch in range(epochs):
+        # Ensure proper shuffling across epochs in DDP
+        if isinstance(trainloader.sampler, DistributedSampler):
+            trainloader.sampler.set_epoch(epoch)
+
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
             optimizer.zero_grad()
-            try:
-                outputs = net(inputs)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-            except RuntimeError as e:
-                if "out of memory" in str(e):
-                    print("CUDA OOM error. Try reducing batch size.")
-                    torch.cuda.empty_cache()
-                    continue
-                else:
-                    raise e
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
             running_loss += loss.item()
-            if i % 2000 == 1999 and rank == 0:  # only log from rank 0
+            if i % 2000 == 1999 and rank == 0:
                 avg_loss = running_loss / 2000
                 print(f'[{epoch + 1}, {i + 1:5d}] loss: {avg_loss:.3f}')
-                log_json("training_log.json", epoch+1, i+1, avg_loss,
-                         str(device), world_size, rank)
+                log_json("training_log.json", epoch+1, i+1, avg_loss, str(device), world_size, rank)
                 running_loss = 0.0
 
         if rank == 0:
@@ -145,49 +153,97 @@ def evaluate_model(net, dataloader, device, classes):
 # Main
 # ------------------------------------------------------
 def main():
+    args = parse_args()
+
     device, num_gpus = get_device_info()
-    world_size = int(os.environ.get("WORLD_SIZE", "1"))
-    rank = int(os.environ.get("RANK", "0"))
 
-    if world_size > 1:
+    # Initialize DDP if launched with torchrun
+    if "RANK" in os.environ or "WORLD_SIZE" in os.environ:
         init_process_group(backend="nccl")
-        torch.cuda.set_device(rank % num_gpus)
+        rank = get_rank()
+        world_size = get_world_size()
+        torch.cuda.set_device(rank % max(1, num_gpus))
+        print(f"[DDP] world_size={world_size}, rank={rank}")
+    else:
+        rank, world_size = 0, 1
 
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
-    ])
-    batch_size = 4
+    try:
+        torch.manual_seed(42)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                            download=True, transform=transform)
-    sampler = DistributedSampler(trainset) if world_size > 1 else None
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                              shuffle=(sampler is None),
-                                              sampler=sampler, num_workers=2)
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
+        ])
 
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                           download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                             shuffle=False, num_workers=2)
+        # 1) Only rank 0 downloads the dataset
+        if rank == 0:
+            _ = torchvision.datasets.CIFAR10(root='./data', train=True, download=True)
+            _ = torchvision.datasets.CIFAR10(root='./data', train=False, download=True)
 
-    classes = ('plane','car','bird','cat','deer','dog','frog','horse','ship','truck')
+        # 2) All ranks wait until download completes
+        if is_initialized():
+            torch.distributed.barrier()
 
-    net = Net().to(device)
-    if world_size > 1:
-        net = DDP(net, device_ids=[rank % num_gpus])
+        # 3) Now build datasets and loaders on all ranks (download=False)
+        trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+                                                download=False, transform=transform)
+        testset  = torchvision.datasets.CIFAR10(root='./data', train=False,
+                                                download=False, transform=transform)
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+        sampler = DistributedSampler(trainset) if world_size > 1 else None
+        trainloader = torch.utils.data.DataLoader(
+            trainset,
+            batch_size=args.batch_size,
+            shuffle=(sampler is None),
+            sampler=sampler,
+            num_workers=2,
+            pin_memory=True
+        )
+        testloader = torch.utils.data.DataLoader(
+            testset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=2,
+            pin_memory=True
+        )
 
-    train(net, trainloader, criterion, optimizer, testloader, device, classes,
-          epochs=2, world_size=world_size, rank=rank)
+        classes = ('plane','car','bird','cat','deer','dog','frog','horse','ship','truck')
 
-    if rank == 0:
-        torch.save(net.state_dict(), './cifar_net.pth')
+        net = Net().to(device)
+        if world_size > 1:
+            net = DDP(net, device_ids=[rank % max(1, num_gpus)], output_device=rank % max(1, num_gpus))
 
-    if world_size > 1:
-        destroy_process_group()
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+
+        # If using DistributedSampler, set epoch each loop inside train()
+        train(net, trainloader, criterion, optimizer, testloader, device, classes,
+              epochs=args.epochs, world_size=world_size, rank=rank)
+
+        if rank == 0:
+            torch.save(net.state_dict(), './cifar_net.pth')
+
+    except RuntimeError as e:
+        if "Dataset not found or corrupted" in str(e):
+            if rank == 0:
+                print("Dataset corrupted. Removing ./data and re-downloading...")
+                import shutil
+                shutil.rmtree("./data", ignore_errors=True)
+                _ = torchvision.datasets.CIFAR10(root='./data', train=True, download=True)
+                _ = torchvision.datasets.CIFAR10(root='./data', train=False, download=True)
+            if is_initialized():
+                torch.distributed.barrier()
+            # Rebuild datasets after recovery
+            # (Optionally re-run main() or rebuild loaders here)
+            raise
+        else:
+            raise
+    finally:
+        if is_initialized():
+            destroy_process_group()
+
 
 if __name__ == "__main__":
     main()
