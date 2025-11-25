@@ -185,4 +185,28 @@ def main(rank, world_size, epochs=2):
     train(net, trainloader, criterion, optimizer, testloader, rank, classes, epochs=epochs, world_size=world_size)
 
     # Save final model state at rank 0
-    if
+    if rank == 0:
+        PATH = './cifar_net.pth'
+        torch.save(net.state_dict(), PATH)
+
+    # Evaluate
+    test(net, testloader, classes)
+
+    # Destroy the process group at the end
+    destroy_process_group()
+
+
+# ------------------------------------------------------
+# Distributed setup
+# ------------------------------------------------------
+def run():
+    import sys
+    world_size = torch.cuda.device_count()  # Number of GPUs to use
+    epochs = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+
+    # Run the DDP training across multiple processes
+    mp.spawn(main, args=(world_size, epochs), nprocs=world_size)
+
+
+if __name__ == "__main__":
+    run()
