@@ -206,8 +206,24 @@ def main(epochs, save_every, batch_size):
     ])
 
     # Dataset
-    trainset = torchvision.datasets.CIFAR10(root="./data", train=True,
-                                            download=True, transform=transform)
+    rank = int(os.environ["RANK"])
+
+    # Only rank 0 downloads
+    if rank == 0:
+        torchvision.datasets.CIFAR10(root="./data", train=True, download=True)
+        torchvision.datasets.CIFAR10(root="./data", train=False, download=True)
+
+    # Sync all processes here — ensures rank0 finished download
+    torch.distributed.barrier()
+
+    # Now, all ranks load data WITHOUT downloading
+    trainset = torchvision.datasets.CIFAR10(
+        root="./data", train=True, download=False, transform=transform
+    )
+    testset = torchvision.datasets.CIFAR10(
+        root="./data", train=False, download=False, transform=transform
+    )
+
     testset = torchvision.datasets.CIFAR10(root="./data", train=False,
                                            download=True, transform=transform)
 
