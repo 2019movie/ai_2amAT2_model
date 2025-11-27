@@ -16,7 +16,7 @@ echo "Detected GPUs: $NUM_GPUS"
 # -----------------------------
 if [ "$NUM_GPUS" -le 1 ]; then
     echo "Single GPU or CPU detected. Running single-GPU training..."
-    python ./train-single-jsonLog.py
+    python ./ai_2amAT2_model/train-single-jsonLog.py
 
 else
     echo "Multiple GPUs detected. Running Distributed Data Parallel (DDP)..."
@@ -24,7 +24,7 @@ else
 
     torchrun \
         --nproc_per_node=$NUM_GPUS \
-        ./train_multi.py \
+        ./ai_2amAT2_model/train_multi.py \
         --epochs 10 \
         --save_every 1 \
         --batch_size 32
