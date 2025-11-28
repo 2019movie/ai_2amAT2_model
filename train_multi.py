@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 import os
+from datetime import datetime
 
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -46,16 +47,30 @@ def init_json_log(filename="training_log.json"):
 
 
 def log_json(filename, epoch, batch, loss):
-    if os.environ.get("RANK", "0") != "0":   # only rank 0 logs
+    # Only rank 0 logs
+    if os.environ.get("RANK", "0") != "0":
         return
-    with open(filename, "r+") as f:
-        data = json.load(f)
-        data["logs"].append({
-            "epoch": epoch,
-            "batch": batch,
-            "loss": loss
-        })
-        f.seek(0)
+
+    # Load existing JSON
+    try:
+        with open(filename, "r") as f:
+            data = json.load(f)
+    except Exception:
+        data = {"logs": []}
+
+    # Create timestamp in ISO-8601 format
+    timestamp = datetime.utcnow().isoformat() + "Z"
+
+    # Append new entry
+    data["logs"].append({
+        "timestamp": timestamp,
+        "epoch": epoch,
+        "batch": batch,
+        "loss": loss
+    })
+
+    # Write back clean JSON
+    with open(filename, "w") as f:
         json.dump(data, f, indent=4)
 
 
@@ -143,11 +158,12 @@ class Trainer:
             running_loss += loss
 
             # Only rank 0 prints/logs
-            if self.rank == 0 and (batch_idx + 1) % 2000 == 0:
-                avg = running_loss / 2000
+            if self.rank == 0 and (batch_idx + 1) % 200 == 0:
+                avg = running_loss / 200
                 print(f"[Epoch {epoch+1}, Batch {batch_idx+1}] Loss: {avg:.3f}")
                 log_json("training_log.json", epoch+1, batch_idx+1, avg)
                 running_loss = 0.0
+
 
         if self.rank == 0:
             self.evaluate(epoch)
