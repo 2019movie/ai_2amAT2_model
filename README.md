@@ -35,20 +35,28 @@ L__requirements.txt           # Python dependencies
 
 ### Training
 - Run script:
-- ./ai_2amAT2_model/run_distributed.sh
-
+```markdown
+./ai_2amAT2_model/run_distributed.sh
+```
 #### When Single GPU detected
-- it executes: python train.py --batch_size=32 --epochs=2 --compile=False
-
+- it executes: 
+```markdown
+python train.py --batch_size=32 --epochs=2 --compile=False
+```
 #### When multi GPU detected (DDP)
 
-- it executes: torchrun --nproc_per_node=[num of GPU] ./ai_2amAT2_model/train_multi.py --epochs 10 --save_every 1 --batch_size 32
-
+- it executes: 
+```markdown
+torchrun --nproc_per_node=[num of GPU] ./ai_2amAT2_model/train_multi.py --epochs 10 --save_every 1 --batch_size 32
+```
 
 ## Model output
 The model will save as "cifar_net.pth"
 
 ## Load the model
+```markdown
+
 model = Net()
 model.load_state_dict(torch.load("cifar_net.pth"))
 model.eval()
+```
