@@ -4,22 +4,23 @@
 
 This repository contains a complete, assessment-ready machine learning training pipeline using PyTorch, supporting both single-GPU and Distributed Data Parallel (DDP) training with torchrun.
 
-The project trains a simple convolutional neural network (CNN) on the CIFAR-10 dataset,
+The project trains a simple convolutional neural network (CNN) on the CIFAR-10 dataset.
 
 ## Repository structure
 
 ```markdown
 ai_2amAT2_model/
-+--train.py           # main training script
-+--run.sh             # Bash wrapper for single-GPU or DDP execution
-+--README.md          # Documentation
-L__requirements.txt   # Python dependencies
++--train_multi.py             # main training script for multiple GPU
++--train-single-jsonLog.py    # main training script for single GPU/CPU
++--run_distributed.sh         # Bash wrapper for single-GPU or DDP execution
++--README.md                  # Documentation
++--inference.py               # inference script to load ./cifar_net.pth and simple test
+L__requirements.txt           # Python dependencies
 
 ## Features
 
 - Supports single-GPU training
 - Supports multi-GPU DDP using torchrun
-- Supports multi-node DDP
 - Clean architecture following PyTorch best practices
 
 ## Installation
@@ -29,19 +30,19 @@ L__requirements.txt   # Python dependencies
 - python3 -m venv myenv
 - source myenv/bin/activate
 - pip install -r requirements.txt
+- run bash script ./ai_2amAT2_model/run_distributed.sh
 
 ### Training
-#### Single GPU training
+- Run script:
+- ./ai_2amAT2_model/run_distributed.sh
 
-Run script:
-bash run.sh single
-
+#### When Single GPU detected
 - it executes: python train.py --batch_size=32 --epochs=2 --compile=False
 
-#### multi GPU training (DDP)
+#### When multi GPU detected (DDP)
 
-run script:
-bash run.sh ddp
+- it executes: torchrun --nproc_per_node=[num of GPU] ./ai_2amAT2_model/train_multi.py --epochs 10 --save_every 1 --batch_size 32
+
 
 ## Model output
 The model will save as "cifar_net.pth"
