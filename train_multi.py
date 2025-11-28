@@ -190,6 +190,10 @@ class Trainer:
             self._run_epoch(epoch)
             if self.rank == 0 and epoch % self.save_every == 0:
                 self._save_snapshot(epoch)
+            # Save final trained model
+            if self.rank == 0:
+                torch.save(self.model.module.state_dict(), "./cifar_net.pth")
+            print("Final trained model saved to ./cifar_net.pth")
 
 
 # ------------------------------------------------------
