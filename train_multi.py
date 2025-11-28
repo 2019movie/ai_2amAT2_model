@@ -193,7 +193,7 @@ class Trainer:
             # Save final trained model
             if self.rank == 0:
                 torch.save(self.model.module.state_dict(), "./cifar_net.pth")
-            print("Final trained model saved to ./cifar_net.pth")
+                print("Final trained model saved to ./cifar_net.pth")
 
 
 # ------------------------------------------------------
