@@ -16,6 +16,7 @@ ai_2amAT2_model/
 +--README.md                  # Documentation
 +--inference.py               # inference script to load ./cifar_net.pth and simple test
 L__requirements.txt           # Python dependencies
+```
 
 ## Features
 
